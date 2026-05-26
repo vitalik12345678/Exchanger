@@ -1,5 +1,11 @@
 package ch.jaywalker.stu.partnerbillingservice.exchanger.service;
 
+import static ch.jaywalker.stu.partnerbillingservice.exchanger.TestDataProvider.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import ch.jaywalker.stu.partnerbillingservice.exchanger.client.ExchangeRateHostClient;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.ExternalApiException;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.internal.RatesSnapshot;
@@ -9,22 +15,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import static ch.jaywalker.stu.partnerbillingservice.exchanger.TestDataProvider.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class ExchangeCacheServiceTest {
 
-    @Mock
-    private ExchangeRateHostClient client;
+	@Mock
+	private ExchangeRateHostClient client;
 
-    @InjectMocks
-    private ExchangeCacheService cacheService;
+	@InjectMocks
+	private ExchangeCacheService cacheService;
 
-    @Test
+	@Test
     void givenValidBaseCurrency_whenGetRates_thenMapsToRatesSnapshot() {
         when(client.fetchLatestRates(USD)).thenReturn(usdSnapshot());
 
@@ -34,11 +34,10 @@ class ExchangeCacheServiceTest {
         verify(client).fetchLatestRates(USD);
     }
 
-    @Test
+	@Test
     void givenClientThrowsExternalApiException_whenGetRates_thenExceptionPropagates() {
         when(client.fetchLatestRates(USD)).thenThrow(new ExternalApiException("provider down"));
 
-        assertThatThrownBy(() -> cacheService.getRates(USD))
-                .isInstanceOf(ExternalApiException.class);
+        assertThatThrownBy(() -> cacheService.getRates(USD)).isInstanceOf(ExternalApiException.class);
     }
 }

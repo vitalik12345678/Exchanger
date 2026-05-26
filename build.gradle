@@ -4,6 +4,7 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7'
     id 'checkstyle'
     id 'jacoco'
+    id 'com.diffplug.spotless' version '6.25.0'
 }
 
 group = 'ch.jaywalker.stu.partnerbillingservice'
@@ -34,16 +35,29 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
+spotless {
+    java {
+        eclipse()
+        importOrder()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
 checkstyle {
     toolVersion = '10.21.4'
-    config = resources.text.fromArchiveEntry(configurations.checkstyle, 'google_checks.xml')
+    config = resources.text.fromArchiveEntry(
+        configurations.checkstyle.filter { it.name.startsWith('checkstyle-') },
+        'google_checks.xml'
+    )
 }
 
 jacoco {
-    toolVersion = '0.8.12'
+    toolVersion = '0.8.13'
 }
 
 tasks.named('test') {
+    useJUnitPlatform()
     finalizedBy jacocoTestReport
 }
 

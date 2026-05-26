@@ -8,6 +8,6 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "exchanger.api")
 public class ApiProperties {
-    private String baseUrl;
-    private String key;
+	private String baseUrl;
+	private String key;
 }

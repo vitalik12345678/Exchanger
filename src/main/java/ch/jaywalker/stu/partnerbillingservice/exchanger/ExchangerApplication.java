@@ -7,9 +7,8 @@ import org.springframework.cache.annotation.EnableCaching;
 @SpringBootApplication
 @EnableCaching
 public class ExchangerApplication {
-    
-    public static void main(String[] args) {
-        SpringApplication.run(ExchangerApplication.class, args);
-    }
-    
+
+	public static void main(String[] args) {
+		SpringApplication.run(ExchangerApplication.class, args);
+	}
 }

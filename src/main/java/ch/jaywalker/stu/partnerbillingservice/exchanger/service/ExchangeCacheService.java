@@ -11,11 +11,11 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ExchangeCacheService {
 
-    private final ExchangeRateHostClient client;
+	private final ExchangeRateHostClient client;
 
-    @Cacheable(value = "rates", key = "#baseCurrency")
-    public RatesSnapshot getRates(String baseCurrency) {
-        ApiLatestRatesResponse response = client.fetchLatestRates(baseCurrency);
-        return new RatesSnapshot(response.date(), response.rates());
-    }
+	@Cacheable(value = "rates", key = "#baseCurrency")
+	public RatesSnapshot getRates(String baseCurrency) {
+		ApiLatestRatesResponse response = client.fetchLatestRates(baseCurrency);
+		return new RatesSnapshot(response.date(), response.rates());
+	}
 }

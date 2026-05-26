@@ -9,16 +9,11 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    public OpenAPI exchangerOpenAPI() {
-        return new OpenAPI()
-                .info(new Info()
-                        .title("Exchange Rate API")
-                        .description("Currency exchange rate lookups and conversions powered by exchangerate.host. " +
-                                "Rates are cached for up to 60 seconds to minimise external API calls.")
-                        .version("1.0.0")
-                        .contact(new Contact()
-                                .name("Vitalii")
-                                .email("bretsko.vitalii@gmail.com")));
-    }
+	@Bean
+	public OpenAPI exchangerOpenAPI() {
+		return new OpenAPI().info(new Info().title("Exchange Rate API")
+				.description("Currency exchange rate lookups and conversions powered by exchangerate.host. "
+						+ "Rates are cached for up to 60 seconds to minimise external API calls.")
+				.version("1.0.0").contact(new Contact().name("Vitalii").email("bretsko.vitalii@gmail.com")));
+	}
 }
