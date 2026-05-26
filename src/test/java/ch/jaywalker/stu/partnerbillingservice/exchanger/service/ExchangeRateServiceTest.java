@@ -4,11 +4,13 @@ import static ch.jaywalker.stu.partnerbillingservice.exchanger.TestDataProvider.
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertAll;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
+import ch.jaywalker.stu.partnerbillingservice.exchanger.config.ConversionProperties;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.CurrencyNotFoundException;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.ExternalApiException;
+import ch.jaywalker.stu.partnerbillingservice.exchanger.model.Currency;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.ConversionResponse;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.ConversionResult;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.MultiConversionResponse;
@@ -16,6 +18,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Stream;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,14 +35,22 @@ class ExchangeRateServiceTest {
 	@Mock
 	private ExchangeCacheService cacheService;
 
+	@Mock
+	private ConversionProperties conversionProperties;
+
 	@InjectMocks
 	private ExchangeRateService service;
 
+	@BeforeEach
+	void setUp() {
+		lenient().when(conversionProperties.getScale()).thenReturn(4);
+	}
+
 	@Test
     void givenValidCurrencies_whenGetRate_thenReturnsCorrectRate() {
-        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
+        when(cacheService.getRates(Currency.USD)).thenReturn(ratesSnapshot());
 
-        var result = service.getRate(USD, EUR);
+        var result = service.getRate(Currency.USD, Currency.EUR);
 
         assertAll(
                 () -> assertThat(result.originCurrency()).isEqualTo(USD),
@@ -50,16 +61,17 @@ class ExchangeRateServiceTest {
 
 	@Test
     void givenExternalApiException_whenGetRate_thenExceptionPropagates() {
-        when(cacheService.getRates(USD)).thenThrow(new ExternalApiException("provider down"));
+        when(cacheService.getRates(Currency.USD)).thenThrow(new ExternalApiException("provider down"));
 
-        assertThatThrownBy(() -> service.getRate(USD, EUR)).isInstanceOf(ExternalApiException.class);
+        assertThatThrownBy(() -> service.getRate(Currency.USD, Currency.EUR))
+                .isInstanceOf(ExternalApiException.class);
     }
 
 	@Test
     void givenValidCurrency_whenGetAllRates_thenReturnsAllRates() {
-        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
+        when(cacheService.getRates(Currency.USD)).thenReturn(ratesSnapshot());
 
-        var result = service.getAllRates(USD);
+        var result = service.getAllRates(Currency.USD);
 
         assertAll(
                 () -> assertThat(result.base()).isEqualTo(USD),
@@ -68,31 +80,22 @@ class ExchangeRateServiceTest {
     }
 
 	@ParameterizedTest
-    @ValueSource(strings = {"usd", "Usd", "USD"})
-    void givenAnyCaseCurrencyCode_whenGetRate_thenNormalizesToUpperCase(String inputCurrency) {
-        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
-
-        service.getRate(inputCurrency, EUR);
-
-        verify(cacheService).getRates(USD);
-    }
-
-	@ParameterizedTest
     @MethodSource("conversionAmountProvider")
     void givenDifferentAmounts_whenConvert_thenReturnsCorrectConvertedValue(
             BigDecimal amount, BigDecimal expectedConverted) {
-        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
+        when(cacheService.getRates(Currency.USD)).thenReturn(ratesSnapshot());
 
-        ConversionResponse result = service.convert(USD, EUR, amount);
+        ConversionResponse result = service.convert(Currency.USD, Currency.EUR, amount);
 
         assertThat(result.converted()).isEqualByComparingTo(expectedConverted);
     }
 
 	@Test
     void givenMultipleTargets_whenConvertToMany_thenReturnsResultsForEachTarget() {
-        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
+        when(cacheService.getRates(Currency.USD)).thenReturn(ratesSnapshot());
 
-        MultiConversionResponse result = service.convertToMany(USD, AMOUNT_100, List.of(EUR, GBP));
+        MultiConversionResponse result =
+                service.convertToMany(Currency.USD, AMOUNT_100, List.of(Currency.EUR, Currency.GBP));
         ConversionResult eurResult = result.results().getFirst();
         ConversionResult gbpResult = result.results().get(1);
 
@@ -109,27 +112,39 @@ class ExchangeRateServiceTest {
 	@ParameterizedTest
     @MethodSource("targetListProvider")
     void givenDifferentTargetLists_whenConvertToMany_thenReturnsMatchingResultCount(
-            List<String> targets, int expectedCount) {
-        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
+            List<Currency> targets, int expectedCount) {
+        when(cacheService.getRates(Currency.USD)).thenReturn(ratesSnapshot());
 
-        MultiConversionResponse result = service.convertToMany(USD, AMOUNT_100, targets);
+        MultiConversionResponse result = service.convertToMany(Currency.USD, AMOUNT_100, targets);
 
         assertThat(result.results()).hasSize(expectedCount);
     }
 
+	@Test
+    void givenNullRatesInSnapshot_whenGetRate_thenThrowsCurrencyNotFoundException() {
+        when(cacheService.getRates(Currency.USD)).thenReturn(ratesSnapshotNullRates());
+
+        assertThatThrownBy(() -> service.getRate(Currency.USD, Currency.EUR))
+                .isInstanceOf(CurrencyNotFoundException.class);
+    }
+
 	@ParameterizedTest
     @ValueSource(strings = {"getRate", "convert", "convertToMany"})
-    void givenUnknownCurrency_whenAnyServiceMethodCalled_thenThrowsCurrencyNotFoundException(String operation) {
-        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
+    void givenCurrencyAbsentFromSnapshot_whenAnyServiceMethodCalled_thenThrowsCurrencyNotFoundException(
+            String operation) {
+        when(cacheService.getRates(Currency.USD)).thenReturn(ratesSnapshot());
 
         ThrowingCallable call =
                 switch (operation) {
-                    case "getRate" -> () -> service.getRate(USD, UNKNOWN_CURRENCY);
-                    case "convert" -> () -> service.convert(USD, UNKNOWN_CURRENCY, AMOUNT_100);
-                    default -> () -> service.convertToMany(USD, AMOUNT_100, List.of(EUR, UNKNOWN_CURRENCY));
+                    case "getRate" -> () -> service.getRate(Currency.USD, ABSENT_CURRENCY);
+                    case "convert" -> () -> service.convert(Currency.USD, ABSENT_CURRENCY, AMOUNT_100);
+                    default -> () -> service.convertToMany(
+                            Currency.USD, AMOUNT_100, List.of(Currency.EUR, ABSENT_CURRENCY));
                 };
 
-        assertThatThrownBy(call).isInstanceOf(CurrencyNotFoundException.class).hasMessageContaining(UNKNOWN_CURRENCY);
+        assertThatThrownBy(call)
+                .isInstanceOf(CurrencyNotFoundException.class)
+                .hasMessageContaining(ABSENT_CURRENCY.name());
     }
 
 	static Stream<Arguments> conversionAmountProvider() {
@@ -138,6 +153,7 @@ class ExchangeRateServiceTest {
 	}
 
 	static Stream<Arguments> targetListProvider() {
-		return Stream.of(Arguments.of(List.of(EUR), 1), Arguments.of(List.of(EUR, GBP, JPY), 3));
+		return Stream.of(Arguments.of(List.of(Currency.EUR), 1),
+				Arguments.of(List.of(Currency.EUR, Currency.GBP, Currency.JPY), 3));
 	}
 }

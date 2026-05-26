@@ -1,5 +1,6 @@
 package ch.jaywalker.stu.partnerbillingservice.exchanger.controller;
 
+import ch.jaywalker.stu.partnerbillingservice.exchanger.model.Currency;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.ConversionResponse;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.MultiConversionResponse;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.RateResponse;
@@ -11,17 +12,20 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Validated
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
@@ -36,8 +40,8 @@ public class ExchangeRateController {
 			@ApiResponse(responseCode = "404", description = "Currency code not found", content = @Content),
 			@ApiResponse(responseCode = "502", description = "External rate provider unavailable", content = @Content)})
 	public ResponseEntity<RateResponse> getRate(
-			@Parameter(description = "Source currency code (e.g. USD)", example = "USD") @PathVariable String originCurrency,
-			@Parameter(description = "Target currency code (e.g. EUR)", example = "EUR") @PathVariable String targetCurrency) {
+			@Parameter(description = "Source currency code (e.g. USD)", example = "USD") @PathVariable Currency originCurrency,
+			@Parameter(description = "Target currency code (e.g. EUR)", example = "EUR") @PathVariable Currency targetCurrency) {
 		return ResponseEntity.ok(exchangeRateService.getRate(originCurrency, targetCurrency));
 	}
 
@@ -47,7 +51,7 @@ public class ExchangeRateController {
 			@ApiResponse(responseCode = "404", description = "Base currency code not found", content = @Content),
 			@ApiResponse(responseCode = "502", description = "External rate provider unavailable", content = @Content)})
 	public ResponseEntity<RatesResponse> getAllRates(
-			@Parameter(description = "Base currency code (e.g. USD)", example = "USD") @PathVariable String originCurrency) {
+			@Parameter(description = "Base currency code (e.g. USD)", example = "USD") @PathVariable Currency originCurrency) {
 		return ResponseEntity.ok(exchangeRateService.getAllRates(originCurrency));
 	}
 
@@ -58,8 +62,8 @@ public class ExchangeRateController {
 			@ApiResponse(responseCode = "404", description = "Currency code not found", content = @Content),
 			@ApiResponse(responseCode = "502", description = "External rate provider unavailable", content = @Content)})
 	public ResponseEntity<ConversionResponse> convert(
-			@Parameter(description = "Source currency code (e.g. USD)", example = "USD") @PathVariable String originCurrency,
-			@Parameter(description = "Target currency code (e.g. EUR)", example = "EUR") @PathVariable String targetCurrency,
+			@Parameter(description = "Source currency code (e.g. USD)", example = "USD") @PathVariable Currency originCurrency,
+			@Parameter(description = "Target currency code (e.g. EUR)", example = "EUR") @PathVariable Currency targetCurrency,
 			@Parameter(description = "Amount to convert", example = "100.0") @RequestParam @Positive BigDecimal amount) {
 		return ResponseEntity.ok(exchangeRateService.convert(originCurrency, targetCurrency, amount));
 	}
@@ -71,9 +75,9 @@ public class ExchangeRateController {
 			@ApiResponse(responseCode = "404", description = "Currency code not found", content = @Content),
 			@ApiResponse(responseCode = "502", description = "External rate provider unavailable", content = @Content)})
 	public ResponseEntity<MultiConversionResponse> convertToMany(
-			@Parameter(description = "Source currency code (e.g. USD)", example = "USD") @PathVariable String originCurrency,
+			@Parameter(description = "Source currency code (e.g. USD)", example = "USD") @PathVariable Currency originCurrency,
 			@Parameter(description = "Amount to convert", example = "100.0") @RequestParam @Positive BigDecimal amount,
-			@Parameter(description = "Comma-separated list of target currency codes", example = "EUR,GBP,JPY") @RequestParam List<String> targets) {
+			@Parameter(description = "Comma-separated list of target currency codes", example = "EUR,GBP,JPY") @RequestParam @NotEmpty List<Currency> targets) {
 		return ResponseEntity.ok(exchangeRateService.convertToMany(originCurrency, amount, targets));
 	}
 }

@@ -6,17 +6,29 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
+	private static final String ERROR_BASE_URI = "https://exchanger.example.com/errors/";
+
 	@ExceptionHandler(CurrencyNotFoundException.class)
 	public ProblemDetail handleCurrencyNotFound(CurrencyNotFoundException ex) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
 		problem.setTitle("Currency Not Found");
-		problem.setType(URI.create("https://exchanger.example.com/errors/currency-not-found"));
+		problem.setType(URI.create(ERROR_BASE_URI + "currency-not-found"));
+		return problem;
+	}
+
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+		String value = ex.getValue() != null ? String.valueOf(ex.getValue()).toUpperCase() : "unknown";
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Currency not found: " + value);
+		problem.setTitle("Currency Not Found");
+		problem.setType(URI.create(ERROR_BASE_URI + "currency-not-found"));
 		return problem;
 	}
 
@@ -26,7 +38,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY,
 				"The exchange rate provider is currently unavailable. Please try again later.");
 		problem.setTitle("External API Unavailable");
-		problem.setType(URI.create("https://exchanger.example.com/errors/external-api-error"));
+		problem.setType(URI.create(ERROR_BASE_URI + "external-api-error"));
 		return problem;
 	}
 }

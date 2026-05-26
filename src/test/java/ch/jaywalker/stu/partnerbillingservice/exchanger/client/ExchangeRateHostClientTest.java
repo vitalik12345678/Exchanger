@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.when;
 
+import ch.jaywalker.stu.partnerbillingservice.exchanger.config.ApiProperties;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.ExternalApiException;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.external.ApiError;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.external.ApiLatestRatesResponse;
@@ -27,6 +28,9 @@ class ExchangeRateHostClientTest {
 
 	@Mock(answer = RETURNS_DEEP_STUBS)
 	private RestClient exchangeRateRestClient;
+
+	@Mock
+	private ApiProperties apiProperties;
 
 	@InjectMocks
 	private ExchangeRateHostClient client;
@@ -61,8 +65,8 @@ class ExchangeRateHostClientTest {
 
 	@Test
 	void givenFailureResponseWithErrorInfo_whenFetchLatestRates_thenThrowsExceptionWithDetail() {
-		ApiLatestRatesResponse failResponse = new ApiLatestRatesResponse(false, USD, SNAPSHOT_DATE, Map.of(),
-				new ApiError(104, "base_currency_access_restricted", "base currency unavailable"));
+		ApiLatestRatesResponse failResponse = new ApiLatestRatesResponse(false, USD, SNAPSHOT_TIMESTAMP, Map.of(),
+				new ApiError(104, "base currency unavailable"));
 		when(exchangeRateRestClient.get().uri(ArgumentMatchers.<Function<UriBuilder, URI>>any()).retrieve()
 				.body(ApiLatestRatesResponse.class)).thenReturn(failResponse);
 
@@ -72,7 +76,8 @@ class ExchangeRateHostClientTest {
 
 	@Test
 	void givenFailureResponseWithoutErrorInfo_whenFetchLatestRates_thenThrowsExceptionWithUnknownError() {
-		ApiLatestRatesResponse failResponse = new ApiLatestRatesResponse(false, USD, SNAPSHOT_DATE, Map.of(), null);
+		ApiLatestRatesResponse failResponse = new ApiLatestRatesResponse(false, USD, SNAPSHOT_TIMESTAMP, Map.of(),
+				null);
 		when(exchangeRateRestClient.get().uri(ArgumentMatchers.<Function<UriBuilder, URI>>any()).retrieve()
 				.body(ApiLatestRatesResponse.class)).thenReturn(failResponse);
 

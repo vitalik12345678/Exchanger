@@ -7,9 +7,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.CurrencyNotFoundException;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.ExternalApiException;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.GlobalExceptionHandler;
+import ch.jaywalker.stu.partnerbillingservice.exchanger.model.Currency;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.service.ExchangeRateService;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,28 +51,29 @@ class ExchangeRateControllerTest {
 
 	@ParameterizedTest
     @MethodSource("validCurrencyPairsProvider")
-    void givenDifferentValidCurrencyPairs_whenGetRate_thenAlwaysReturns200(String origin, String target)
+    void givenDifferentValidCurrencyPairs_whenGetRate_thenAlwaysReturns200(Currency origin, Currency target)
             throws Exception {
         when(exchangeRateService.getRate(origin, target)).thenReturn(rateResponse(origin, target));
 
-        mockMvc.perform(get(URL_RATES, origin, target)).andExpect(status().isOk());
+        mockMvc.perform(get(URL_RATES, origin.name(), target.name())).andExpect(status().isOk());
     }
 
 	@Test
-    void givenUnknownCurrency_whenGetRate_thenReturns404WithProblemDetail() throws Exception {
-        when(exchangeRateService.getRate(USD, UNKNOWN_CURRENCY))
-                .thenThrow(new CurrencyNotFoundException(UNKNOWN_CURRENCY));
+	void givenInvalidCurrencyCode_whenGetRate_thenReturns404WithProblemDetail() throws Exception {
+		ResultActions result = mockMvc.perform(get(URL_RATES, USD, UNKNOWN_CURRENCY));
 
-        ResultActions result = mockMvc.perform(get(URL_RATES, USD, UNKNOWN_CURRENCY));
+		assertAll(() -> result.andExpect(status().isNotFound()),
+				() -> result.andExpect(jsonPath(JSON_ERROR_TITLE).value(ERROR_TITLE_CURRENCY_NOT_FOUND)));
+	}
 
-        assertAll(
-                () -> result.andExpect(status().isNotFound()),
-                () -> result.andExpect(jsonPath(JSON_ERROR_TITLE).value(ERROR_TITLE_CURRENCY_NOT_FOUND)));
-    }
+	@Test
+	void givenLowerCaseCurrencyCode_whenGetRate_thenReturns404() throws Exception {
+		mockMvc.perform(get("/api/v1/rates/usd/eur")).andExpect(status().isNotFound());
+	}
 
 	@Test
     void givenValidCurrencyPair_whenGetRate_thenReturns200WithRateResponse() throws Exception {
-        when(exchangeRateService.getRate(USD, EUR)).thenReturn(rateResponse());
+        when(exchangeRateService.getRate(Currency.USD, Currency.EUR)).thenReturn(rateResponse());
 
         ResultActions result = mockMvc.perform(get(URL_RATES, USD, EUR));
 
@@ -85,7 +86,8 @@ class ExchangeRateControllerTest {
 
 	@Test
     void givenExternalApiUnavailable_whenGetRate_thenReturns502WithProblemDetail() throws Exception {
-        when(exchangeRateService.getRate(USD, EUR)).thenThrow(new ExternalApiException("provider down"));
+        when(exchangeRateService.getRate(Currency.USD, Currency.EUR))
+                .thenThrow(new ExternalApiException("provider down"));
 
         ResultActions result = mockMvc.perform(get(URL_RATES, USD, EUR));
 
@@ -96,7 +98,7 @@ class ExchangeRateControllerTest {
 
 	@Test
     void givenValidBase_whenGetAllRates_thenReturns200WithRatesMap() throws Exception {
-        when(exchangeRateService.getAllRates(USD)).thenReturn(ratesResponse());
+        when(exchangeRateService.getAllRates(Currency.USD)).thenReturn(ratesResponse());
 
         ResultActions result = mockMvc.perform(get(URL_RATES_ALL, USD));
 
@@ -109,7 +111,8 @@ class ExchangeRateControllerTest {
 
 	@Test
     void givenValidInput_whenConvert_thenReturns200WithConversionResponse() throws Exception {
-        when(exchangeRateService.convert(USD, EUR, AMOUNT_100)).thenReturn(conversionResponse());
+        when(exchangeRateService.convert(Currency.USD, Currency.EUR, AMOUNT_100))
+                .thenReturn(conversionResponse());
 
         ResultActions result =
                 mockMvc.perform(get(URL_CONVERT, USD, EUR).param(PARAM_AMOUNT, AMOUNT_100.toPlainString()));
@@ -123,7 +126,8 @@ class ExchangeRateControllerTest {
 
 	@Test
     void givenValidInput_whenConvertToMany_thenReturns200WithMultiConversionResponse() throws Exception {
-        when(exchangeRateService.convertToMany(USD, AMOUNT_100, java.util.List.of(EUR, GBP)))
+        when(exchangeRateService.convertToMany(
+                        Currency.USD, AMOUNT_100, java.util.List.of(Currency.EUR, Currency.GBP)))
                 .thenReturn(multiConversionResponse());
 
         ResultActions result = mockMvc.perform(get(URL_CONVERT_MULTI, USD)
@@ -144,6 +148,7 @@ class ExchangeRateControllerTest {
 	}
 
 	static Stream<Arguments> validCurrencyPairsProvider() {
-		return Stream.of(Arguments.of(USD, GBP), Arguments.of(EUR, USD), Arguments.of(GBP, JPY));
+		return Stream.of(Arguments.of(Currency.USD, Currency.GBP), Arguments.of(Currency.EUR, Currency.USD),
+				Arguments.of(Currency.GBP, Currency.JPY));
 	}
 }

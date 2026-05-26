@@ -1,6 +1,8 @@
 package ch.jaywalker.stu.partnerbillingservice.exchanger.service;
 
+import ch.jaywalker.stu.partnerbillingservice.exchanger.config.ConversionProperties;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.CurrencyNotFoundException;
+import ch.jaywalker.stu.partnerbillingservice.exchanger.model.Currency;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.internal.RatesSnapshot;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.ConversionResponse;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.ConversionResult;
@@ -18,48 +20,43 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ExchangeRateService {
 
-	private static final int CONVERSION_SCALE = 4;
-
 	private final ExchangeCacheService cacheService;
+	private final ConversionProperties conversionProperties;
 
-	public RateResponse getRate(String originCurrency, String targetCurrency) {
-		String origin = originCurrency.toUpperCase();
-		String target = targetCurrency.toUpperCase();
-		RatesSnapshot snapshot = cacheService.getRates(origin);
-		return new RateResponse(origin, target, extractRate(snapshot, target), snapshot.date());
+	public RateResponse getRate(Currency originCurrency, Currency targetCurrency) {
+		RatesSnapshot snapshot = cacheService.getRates(originCurrency);
+		return new RateResponse(originCurrency.name(), targetCurrency.name(), extractRate(snapshot, targetCurrency),
+				snapshot.date());
 	}
 
-	public RatesResponse getAllRates(String originCurrency) {
-		String origin = originCurrency.toUpperCase();
-		RatesSnapshot snapshot = cacheService.getRates(origin);
-		return new RatesResponse(origin, snapshot.rates(), snapshot.date());
+	public RatesResponse getAllRates(Currency originCurrency) {
+		RatesSnapshot snapshot = cacheService.getRates(originCurrency);
+		return new RatesResponse(originCurrency.name(), snapshot.rates(), snapshot.date());
 	}
 
-	public ConversionResponse convert(String originCurrency, String targetCurrency, BigDecimal amount) {
-		String origin = originCurrency.toUpperCase();
-		String target = targetCurrency.toUpperCase();
-		RatesSnapshot snapshot = cacheService.getRates(origin);
-		BigDecimal rate = extractRate(snapshot, target);
-		BigDecimal converted = amount.multiply(rate).setScale(CONVERSION_SCALE, RoundingMode.HALF_UP);
-		return new ConversionResponse(origin, target, amount, converted, rate);
+	public ConversionResponse convert(Currency originCurrency, Currency targetCurrency, BigDecimal amount) {
+		RatesSnapshot snapshot = cacheService.getRates(originCurrency);
+		BigDecimal rate = extractRate(snapshot, targetCurrency);
+		BigDecimal converted = amount.multiply(rate).setScale(conversionProperties.getScale(), RoundingMode.HALF_UP);
+		return new ConversionResponse(originCurrency.name(), targetCurrency.name(), amount, converted, rate);
 	}
 
-	public MultiConversionResponse convertToMany(String originCurrency, BigDecimal amount, List<String> targets) {
-		String origin = originCurrency.toUpperCase();
-		RatesSnapshot snapshot = cacheService.getRates(origin);
-		List<ConversionResult> results = targets.stream().map(String::toUpperCase).map(target -> {
+	public MultiConversionResponse convertToMany(Currency originCurrency, BigDecimal amount, List<Currency> targets) {
+		RatesSnapshot snapshot = cacheService.getRates(originCurrency);
+		List<ConversionResult> results = targets.stream().map(target -> {
 			BigDecimal rate = extractRate(snapshot, target);
-			BigDecimal converted = amount.multiply(rate).setScale(CONVERSION_SCALE, RoundingMode.HALF_UP);
-			return new ConversionResult(target, converted, rate);
+			BigDecimal converted = amount.multiply(rate).setScale(conversionProperties.getScale(),
+					RoundingMode.HALF_UP);
+			return new ConversionResult(target.name(), converted, rate);
 		}).toList();
-		return new MultiConversionResponse(origin, amount, results);
+		return new MultiConversionResponse(originCurrency.name(), amount, results);
 	}
 
-	private BigDecimal extractRate(RatesSnapshot snapshot, String target) {
+	private BigDecimal extractRate(RatesSnapshot snapshot, Currency target) {
 		Map<String, BigDecimal> rates = snapshot.rates();
-		if (rates == null || !rates.containsKey(target)) {
-			throw new CurrencyNotFoundException(target);
+		if (rates == null || !rates.containsKey(target.name())) {
+			throw new CurrencyNotFoundException(target.name());
 		}
-		return rates.get(target);
+		return rates.get(target.name());
 	}
 }

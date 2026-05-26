@@ -9,6 +9,6 @@ public class RestClientConfig {
 
 	@Bean
 	public RestClient exchangeRateRestClient(ApiProperties props) {
-		return RestClient.builder().baseUrl(props.getBaseUrl()).defaultHeader("apikey", props.getKey()).build();
+		return RestClient.builder().baseUrl(props.getBaseUrl()).build();
 	}
 }

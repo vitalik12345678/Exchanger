@@ -1,5 +1,6 @@
 package ch.jaywalker.stu.partnerbillingservice.exchanger;
 
+import ch.jaywalker.stu.partnerbillingservice.exchanger.model.Currency;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.external.ApiLatestRatesResponse;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.internal.RatesSnapshot;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.ConversionResponse;
@@ -19,6 +20,7 @@ public final class TestDataProvider {
 	public static final String GBP = "GBP";
 	public static final String JPY = "JPY";
 	public static final String UNKNOWN_CURRENCY = "XYZ";
+	public static final Currency ABSENT_CURRENCY = Currency.CHF;
 
 	public static final BigDecimal EUR_RATE = new BigDecimal("0.9234");
 	public static final BigDecimal GBP_RATE = new BigDecimal("0.7801");
@@ -38,6 +40,7 @@ public final class TestDataProvider {
 	public static final BigDecimal GBP_CONVERTED_200 = new BigDecimal("156.02");
 
 	public static final LocalDate SNAPSHOT_DATE = LocalDate.of(2024, 5, 26);
+	public static final long SNAPSHOT_TIMESTAMP = 1716681600L;
 
 	public static final String ERROR_TITLE_CURRENCY_NOT_FOUND = "Currency Not Found";
 	public static final String ERROR_TITLE_EXTERNAL_API_UNAVAILABLE = "External API Unavailable";
@@ -62,12 +65,20 @@ public final class TestDataProvider {
 	public static final String PARAM_TARGETS = "targets";
 
 	public static ApiLatestRatesResponse usdSnapshot() {
-		return new ApiLatestRatesResponse(true, USD, SNAPSHOT_DATE, Map.of(EUR, EUR_RATE, GBP, GBP_RATE, JPY, JPY_RATE),
-				null);
+		return new ApiLatestRatesResponse(true, USD, SNAPSHOT_TIMESTAMP,
+				Map.of(USD + EUR, EUR_RATE, USD + GBP, GBP_RATE, USD + JPY, JPY_RATE), null);
+	}
+
+	public static ApiLatestRatesResponse usdSnapshotNullQuotes() {
+		return new ApiLatestRatesResponse(true, USD, SNAPSHOT_TIMESTAMP, null, null);
 	}
 
 	public static RatesSnapshot ratesSnapshot() {
 		return new RatesSnapshot(SNAPSHOT_DATE, Map.of(EUR, EUR_RATE, GBP, GBP_RATE, JPY, JPY_RATE));
+	}
+
+	public static RatesSnapshot ratesSnapshotNullRates() {
+		return new RatesSnapshot(SNAPSHOT_DATE, null);
 	}
 
 	public static RateResponse rateResponse() {
@@ -76,6 +87,10 @@ public final class TestDataProvider {
 
 	public static RateResponse rateResponse(String origin, String target) {
 		return new RateResponse(origin, target, EUR_RATE, SNAPSHOT_DATE);
+	}
+
+	public static RateResponse rateResponse(Currency origin, Currency target) {
+		return new RateResponse(origin.name(), target.name(), EUR_RATE, SNAPSHOT_DATE);
 	}
 
 	public static RatesResponse ratesResponse() {

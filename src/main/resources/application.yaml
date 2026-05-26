@@ -11,8 +11,10 @@ spring:
 
 exchanger:
   api:
-    base-url: https://api.apilayer.com/exchangerates_data
-    key: ${EXCHANGE_RATE_API_KEY:changeme}
+    base-url: https://api.exchangerate.host
+    key: ${EXCHANGE_RATE_API_KEY}
+  conversion:
+    scale: 4
 
 springdoc:
   swagger-ui:

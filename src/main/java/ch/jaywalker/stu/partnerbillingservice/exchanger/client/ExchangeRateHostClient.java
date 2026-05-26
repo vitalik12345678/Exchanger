@@ -1,5 +1,6 @@
 package ch.jaywalker.stu.partnerbillingservice.exchanger.client;
 
+import ch.jaywalker.stu.partnerbillingservice.exchanger.config.ApiProperties;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.ExternalApiException;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.external.ApiLatestRatesResponse;
 import lombok.RequiredArgsConstructor;
@@ -14,11 +15,13 @@ import org.springframework.web.client.RestClientException;
 public class ExchangeRateHostClient {
 
 	private final RestClient exchangeRateRestClient;
+	private final ApiProperties apiProperties;
 
 	public ApiLatestRatesResponse fetchLatestRates(String baseCurrency) {
 		try {
-			ApiLatestRatesResponse response = exchangeRateRestClient.get().uri(
-					uriBuilder -> uriBuilder.path("/latest").queryParam("base", baseCurrency.toUpperCase()).build())
+			ApiLatestRatesResponse response = exchangeRateRestClient.get()
+					.uri(uriBuilder -> uriBuilder.path("/live").queryParam("access_key", apiProperties.getKey())
+							.queryParam("source", baseCurrency.toUpperCase()).build())
 					.retrieve().body(ApiLatestRatesResponse.class);
 
 			if (response == null || !response.success()) {
