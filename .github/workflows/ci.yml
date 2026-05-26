@@ -24,3 +24,9 @@ jobs:
         run: ./gradlew test
         env:
           EXCHANGE_RATE_API_KEY: ci-placeholder
+
+      - name: Upload JaCoCo report
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: build/reports/jacoco/test/
