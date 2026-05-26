@@ -2,7 +2,7 @@ package ch.jaywalker.stu.partnerbillingservice.exchanger.service;
 
 import ch.jaywalker.stu.partnerbillingservice.exchanger.client.ExchangeRateHostClient;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.ExternalApiException;
-import ch.jaywalker.stu.partnerbillingservice.exchanger.model.external.ApiLatestRatesResponse;
+import ch.jaywalker.stu.partnerbillingservice.exchanger.model.internal.RatesSnapshot;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -25,12 +25,12 @@ class ExchangeCacheServiceTest {
     private ExchangeCacheService cacheService;
 
     @Test
-    void givenValidBaseCurrency_whenGetRates_thenDelegatesToClient() {
+    void givenValidBaseCurrency_whenGetRates_thenMapsToRatesSnapshot() {
         when(client.fetchLatestRates(USD)).thenReturn(usdSnapshot());
 
-        ApiLatestRatesResponse result = cacheService.getRates(USD);
+        RatesSnapshot result = cacheService.getRates(USD);
 
-        assertThat(result).isEqualTo(usdSnapshot());
+        assertThat(result).isEqualTo(ratesSnapshot());
         verify(client).fetchLatestRates(USD);
     }
 

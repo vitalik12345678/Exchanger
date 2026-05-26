@@ -1,7 +1,7 @@
 package ch.jaywalker.stu.partnerbillingservice.exchanger.service;
 
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.CurrencyNotFoundException;
-import ch.jaywalker.stu.partnerbillingservice.exchanger.model.external.ApiLatestRatesResponse;
+import ch.jaywalker.stu.partnerbillingservice.exchanger.model.internal.RatesSnapshot;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.ConversionResponse;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.ConversionResult;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.MultiConversionResponse;
@@ -24,30 +24,30 @@ public class ExchangeRateService {
     private final ExchangeCacheService cacheService;
 
     public RateResponse getRate(String originCurrency, String targetCurrency) {
-        ApiLatestRatesResponse snapshot = cacheService.getRates(originCurrency.toUpperCase());
-        
-        BigDecimal rate = extractRate(snapshot, targetCurrency.toUpperCase());
-        
-        return new RateResponse(snapshot.base(), targetCurrency.toUpperCase(), rate, snapshot.date());
+        String origin = originCurrency.toUpperCase();
+        String target = targetCurrency.toUpperCase();
+        RatesSnapshot snapshot = cacheService.getRates(origin);
+        return new RateResponse(origin, target, extractRate(snapshot, target), snapshot.date());
     }
 
     public RatesResponse getAllRates(String originCurrency) {
-        ApiLatestRatesResponse snapshot = cacheService.getRates(originCurrency.toUpperCase());
-        return new RatesResponse(snapshot.base(), snapshot.rates(), snapshot.date());
+        String origin = originCurrency.toUpperCase();
+        RatesSnapshot snapshot = cacheService.getRates(origin);
+        return new RatesResponse(origin, snapshot.rates(), snapshot.date());
     }
 
     public ConversionResponse convert(String originCurrency, String targetCurrency, BigDecimal amount) {
-        ApiLatestRatesResponse snapshot = cacheService.getRates(originCurrency.toUpperCase());
-        
-        BigDecimal rate = extractRate(snapshot, targetCurrency.toUpperCase());
+        String origin = originCurrency.toUpperCase();
+        String target = targetCurrency.toUpperCase();
+        RatesSnapshot snapshot = cacheService.getRates(origin);
+        BigDecimal rate = extractRate(snapshot, target);
         BigDecimal converted = amount.multiply(rate).setScale(CONVERSION_SCALE, RoundingMode.HALF_UP);
-        
-        return new ConversionResponse(snapshot.base(), targetCurrency.toUpperCase(), amount, converted, rate);
+        return new ConversionResponse(origin, target, amount, converted, rate);
     }
 
     public MultiConversionResponse convertToMany(String originCurrency, BigDecimal amount, List<String> targets) {
-        ApiLatestRatesResponse snapshot = cacheService.getRates(originCurrency.toUpperCase());
-
+        String origin = originCurrency.toUpperCase();
+        RatesSnapshot snapshot = cacheService.getRates(origin);
         List<ConversionResult> results = targets.stream()
                 .map(String::toUpperCase)
                 .map(target -> {
@@ -56,11 +56,10 @@ public class ExchangeRateService {
                     return new ConversionResult(target, converted, rate);
                 })
                 .toList();
-
-        return new MultiConversionResponse(snapshot.base(), amount, results);
+        return new MultiConversionResponse(origin, amount, results);
     }
 
-    private BigDecimal extractRate(ApiLatestRatesResponse snapshot, String target) {
+    private BigDecimal extractRate(RatesSnapshot snapshot, String target) {
         Map<String, BigDecimal> rates = snapshot.rates();
         if (rates == null || !rates.containsKey(target)) {
             throw new CurrencyNotFoundException(target);

@@ -40,7 +40,7 @@ class ExchangeRateServiceTest {
 
     @Test
     void givenValidCurrencies_whenGetRate_thenReturnsCorrectRate() {
-        when(cacheService.getRates(USD)).thenReturn(usdSnapshot());
+        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
 
         var result = service.getRate(USD, EUR);
 
@@ -63,7 +63,7 @@ class ExchangeRateServiceTest {
     @ParameterizedTest
     @ValueSource(strings = {"usd", "Usd", "USD"})
     void givenAnyCaseCurrencyCode_whenGetRate_thenNormalizesToUpperCase(String inputCurrency) {
-        when(cacheService.getRates(USD)).thenReturn(usdSnapshot());
+        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
 
         service.getRate(inputCurrency, EUR);
 
@@ -74,7 +74,7 @@ class ExchangeRateServiceTest {
     @MethodSource("conversionAmountProvider")
     void givenDifferentAmounts_whenConvert_thenReturnsCorrectConvertedValue(
             BigDecimal amount, BigDecimal expectedConverted) {
-        when(cacheService.getRates(USD)).thenReturn(usdSnapshot());
+        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
 
         ConversionResponse result = service.convert(USD, EUR, amount);
 
@@ -83,7 +83,7 @@ class ExchangeRateServiceTest {
 
     @Test
     void givenMultipleTargets_whenConvertToMany_thenReturnsResultsForEachTarget() {
-        when(cacheService.getRates(USD)).thenReturn(usdSnapshot());
+        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
 
         MultiConversionResponse result = service.convertToMany(USD, AMOUNT_100, List.of(EUR, GBP));
         ConversionResult eurResult = result.results().getFirst();
@@ -104,7 +104,7 @@ class ExchangeRateServiceTest {
     @MethodSource("targetListProvider")
     void givenDifferentTargetLists_whenConvertToMany_thenReturnsMatchingResultCount(
             List<String> targets, int expectedCount) {
-        when(cacheService.getRates(USD)).thenReturn(usdSnapshot());
+        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
 
         MultiConversionResponse result = service.convertToMany(USD, AMOUNT_100, targets);
 
@@ -115,7 +115,7 @@ class ExchangeRateServiceTest {
     @MethodSource("unknownCurrencyCallsProvider")
     void givenUnknownCurrency_whenAnyServiceMethodCalled_thenThrowsCurrencyNotFoundException(
             ThrowingCallable call) {
-        when(cacheService.getRates(USD)).thenReturn(usdSnapshot());
+        when(cacheService.getRates(USD)).thenReturn(ratesSnapshot());
 
         assertThatThrownBy(call)
                 .isInstanceOf(CurrencyNotFoundException.class)

@@ -1,6 +1,7 @@
 package ch.jaywalker.stu.partnerbillingservice.exchanger;
 
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.external.ApiLatestRatesResponse;
+import ch.jaywalker.stu.partnerbillingservice.exchanger.model.internal.RatesSnapshot;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.ConversionResponse;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.ConversionResult;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.MultiConversionResponse;
@@ -67,6 +68,10 @@ public final class TestDataProvider {
                 Map.of(EUR, EUR_RATE, GBP, GBP_RATE, JPY, JPY_RATE),
                 null
         );
+    }
+
+    public static RatesSnapshot ratesSnapshot() {
+        return new RatesSnapshot(SNAPSHOT_DATE, Map.of(EUR, EUR_RATE, GBP, GBP_RATE, JPY, JPY_RATE));
     }
 
     public static RateResponse rateResponse() {
