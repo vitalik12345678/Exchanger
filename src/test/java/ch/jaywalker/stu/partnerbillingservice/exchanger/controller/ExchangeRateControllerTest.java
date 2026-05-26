@@ -3,26 +3,25 @@ package ch.jaywalker.stu.partnerbillingservice.exchanger.controller;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.CurrencyNotFoundException;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.ExternalApiException;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.exception.GlobalExceptionHandler;
-import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.ConversionResponse;
-import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.ConversionResult;
-import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.MultiConversionResponse;
-import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.RateResponse;
-import ch.jaywalker.stu.partnerbillingservice.exchanger.model.response.RatesResponse;
 import ch.jaywalker.stu.partnerbillingservice.exchanger.service.ExchangeRateService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
+import java.util.stream.Stream;
 
+import static ch.jaywalker.stu.partnerbillingservice.exchanger.TestDataProvider.*;
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -45,92 +44,126 @@ class ExchangeRateControllerTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
+    
+    
+    @ParameterizedTest
+    @MethodSource("missingRequiredParamProvider")
+    void givenMissingRequiredParam_whenConvertEndpointCalled_thenReturns400(
+            MockHttpServletRequestBuilder request) throws Exception {
+        mockMvc.perform(request)
+                .andExpect(status().isBadRequest());
+    }
+    
+    
+    @ParameterizedTest
+    @MethodSource("validCurrencyPairsProvider")
+    void givenDifferentValidCurrencyPairs_whenGetRate_thenAlwaysReturns200(
+            String origin, String target) throws Exception {
+        when(exchangeRateService.getRate(origin, target)).thenReturn(rateResponse(origin, target));
 
-    @Test
-    void getRate_returns200WithRate() throws Exception {
-        when(exchangeRateService.getRate("USD", "EUR"))
-                .thenReturn(new RateResponse("USD", "EUR", new BigDecimal("0.9234"), LocalDate.of(2024, 5, 26)));
-
-        mockMvc.perform(get("/api/v1/rates/USD/EUR"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.from").value("USD"))
-                .andExpect(jsonPath("$.to").value("EUR"))
-                .andExpect(jsonPath("$.rate").value(0.9234));
+        mockMvc.perform(get(URL_RATES, origin, target))
+                .andExpect(status().isOk());
     }
 
     @Test
-    void getRate_unknownCurrency_returns404() throws Exception {
-        when(exchangeRateService.getRate("USD", "XYZ"))
-                .thenThrow(new CurrencyNotFoundException("XYZ"));
+    void givenUnknownCurrency_whenGetRate_thenReturns404WithProblemDetail() throws Exception {
+        when(exchangeRateService.getRate(USD, UNKNOWN_CURRENCY))
+                .thenThrow(new CurrencyNotFoundException(UNKNOWN_CURRENCY));
 
-        mockMvc.perform(get("/api/v1/rates/USD/XYZ"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.title").value("Currency Not Found"));
+        ResultActions result = mockMvc.perform(get(URL_RATES, USD, UNKNOWN_CURRENCY));
+
+        assertAll(
+            () -> result.andExpect(status().isNotFound()),
+            () -> result.andExpect(jsonPath(JSON_ERROR_TITLE).value(ERROR_TITLE_CURRENCY_NOT_FOUND))
+        );
+    }
+    
+    @Test
+    void givenValidCurrencyPair_whenGetRate_thenReturns200WithRateResponse() throws Exception {
+        when(exchangeRateService.getRate(USD, EUR)).thenReturn(rateResponse());
+        
+        ResultActions result = mockMvc.perform(get(URL_RATES, USD, EUR));
+        
+        assertAll(
+                () -> result.andExpect(status().isOk()),
+                () -> result.andExpect(jsonPath(JSON_ORIGIN_CURRENCY).value(USD)),
+                () -> result.andExpect(jsonPath(JSON_TARGET_CURRENCY).value(EUR)),
+                () -> result.andExpect(jsonPath(JSON_RATE).value(EUR_RATE))
+        );
     }
 
     @Test
-    void getRate_externalApiDown_returns502() throws Exception {
-        when(exchangeRateService.getRate("USD", "EUR"))
+    void givenExternalApiUnavailable_whenGetRate_thenReturns502WithProblemDetail() throws Exception {
+        when(exchangeRateService.getRate(USD, EUR))
                 .thenThrow(new ExternalApiException("provider down"));
 
-        mockMvc.perform(get("/api/v1/rates/USD/EUR"))
-                .andExpect(status().isBadGateway())
-                .andExpect(jsonPath("$.title").value("External API Unavailable"));
+        ResultActions result = mockMvc.perform(get(URL_RATES, USD, EUR));
+
+        assertAll(
+            () -> result.andExpect(status().isBadGateway()),
+            () -> result.andExpect(jsonPath(JSON_ERROR_TITLE).value(ERROR_TITLE_EXTERNAL_API_UNAVAILABLE))
+        );
     }
 
     @Test
-    void getAllRates_returns200WithRatesMap() throws Exception {
-        when(exchangeRateService.getAllRates("USD"))
-                .thenReturn(new RatesResponse("USD",
-                        Map.of("EUR", new BigDecimal("0.9234"), "GBP", new BigDecimal("0.7801")),
-                        LocalDate.of(2024, 5, 26)));
+    void givenValidBase_whenGetAllRates_thenReturns200WithRatesMap() throws Exception {
+        when(exchangeRateService.getAllRates(USD)).thenReturn(ratesResponse());
 
-        mockMvc.perform(get("/api/v1/rates/USD"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.base").value("USD"))
-                .andExpect(jsonPath("$.rates.EUR").value(0.9234))
-                .andExpect(jsonPath("$.rates.GBP").value(0.7801));
+        ResultActions result = mockMvc.perform(get(URL_RATES_ALL, USD));
+
+        assertAll(
+            () -> result.andExpect(status().isOk()),
+            () -> result.andExpect(jsonPath(JSON_BASE).value(USD)),
+            () -> result.andExpect(jsonPath("$.rates." + EUR).value(EUR_RATE)),
+            () -> result.andExpect(jsonPath("$.rates." + GBP).value(GBP_RATE))
+        );
     }
 
     @Test
-    void convert_returns200WithConversion() throws Exception {
-        when(exchangeRateService.convert("USD", "EUR", new BigDecimal("100.0")))
-                .thenReturn(new ConversionResponse("USD", "EUR",
-                        new BigDecimal("100.0"), new BigDecimal("92.3400"), new BigDecimal("0.9234")));
+    void givenValidInput_whenConvert_thenReturns200WithConversionResponse() throws Exception {
+        when(exchangeRateService.convert(USD, EUR, AMOUNT_100)).thenReturn(conversionResponse());
 
-        mockMvc.perform(get("/api/v1/convert/USD/EUR").param("amount", "100.0"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.from").value("USD"))
-                .andExpect(jsonPath("$.to").value("EUR"))
-                .andExpect(jsonPath("$.converted").value(92.34));
+        ResultActions result = mockMvc.perform(get(URL_CONVERT, USD, EUR)
+                .param(PARAM_AMOUNT, AMOUNT_100.toPlainString()));
+
+        assertAll(
+            () -> result.andExpect(status().isOk()),
+            () -> result.andExpect(jsonPath(JSON_ORIGIN_CURRENCY).value(USD)),
+            () -> result.andExpect(jsonPath(JSON_TARGET_CURRENCY).value(EUR)),
+            () -> result.andExpect(jsonPath(JSON_CONVERTED).value(EUR_CONVERTED_100))
+        );
+    }
+    
+    @Test
+    void givenValidInput_whenConvertToMany_thenReturns200WithMultiConversionResponse() throws Exception {
+        when(exchangeRateService.convertToMany(USD, AMOUNT_100, java.util.List.of(EUR, GBP)))
+                .thenReturn(multiConversionResponse());
+        
+        ResultActions result = mockMvc.perform(get(URL_CONVERT_MULTI, USD)
+                .param(PARAM_AMOUNT, AMOUNT_100.toPlainString())
+                .param(PARAM_TARGETS, EUR + "," + GBP));
+        
+        assertAll(
+                () -> result.andExpect(status().isOk()),
+                () -> result.andExpect(jsonPath(JSON_ORIGIN_CURRENCY).value(USD)),
+                () -> result.andExpect(jsonPath(JSON_RESULT_0_TARGET).value(EUR)),
+                () -> result.andExpect(jsonPath(JSON_RESULT_1_TARGET).value(GBP))
+        );
     }
 
-    @Test
-    void convert_missingAmount_returns400() throws Exception {
-        mockMvc.perform(get("/api/v1/convert/USD/EUR"))
-                .andExpect(status().isBadRequest());
+    static Stream<MockHttpServletRequestBuilder> missingRequiredParamProvider() {
+        return Stream.of(
+                get(URL_CONVERT, USD, EUR),
+                get(URL_CONVERT_MULTI, USD).param(PARAM_AMOUNT, AMOUNT_100.toPlainString()),
+                get(URL_CONVERT_MULTI, USD).param(PARAM_TARGETS, EUR + "," + GBP)
+        );
     }
-
-    @Test
-    void convertToMany_returns200WithAllResults() throws Exception {
-        when(exchangeRateService.convertToMany("USD", new BigDecimal("100.0"), List.of("EUR", "GBP")))
-                .thenReturn(new MultiConversionResponse("USD", new BigDecimal("100.0"), List.of(
-                        new ConversionResult("EUR", new BigDecimal("92.3400"), new BigDecimal("0.9234")),
-                        new ConversionResult("GBP", new BigDecimal("78.0100"), new BigDecimal("0.7801"))
-                )));
-
-        mockMvc.perform(get("/api/v1/convert/USD")
-                        .param("amount", "100.0")
-                        .param("targets", "EUR,GBP"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.from").value("USD"))
-                .andExpect(jsonPath("$.results[0].to").value("EUR"))
-                .andExpect(jsonPath("$.results[1].to").value("GBP"));
-    }
-
-    @Test
-    void convertToMany_missingTargets_returns400() throws Exception {
-        mockMvc.perform(get("/api/v1/convert/USD").param("amount", "100.0"))
-                .andExpect(status().isBadRequest());
+    
+    static Stream<Arguments> validCurrencyPairsProvider() {
+        return Stream.of(
+                Arguments.of(USD, GBP),
+                Arguments.of(EUR, USD),
+                Arguments.of(GBP, JPY)
+        );
     }
 }

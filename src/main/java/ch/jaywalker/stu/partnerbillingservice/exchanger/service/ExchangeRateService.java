@@ -23,26 +23,30 @@ public class ExchangeRateService {
 
     private final ExchangeCacheService cacheService;
 
-    public RateResponse getRate(String from, String to) {
-        ApiLatestRatesResponse snapshot = cacheService.getRates(from.toUpperCase());
-        BigDecimal rate = extractRate(snapshot, to.toUpperCase());
-        return new RateResponse(snapshot.base(), to.toUpperCase(), rate, snapshot.date());
+    public RateResponse getRate(String originCurrency, String targetCurrency) {
+        ApiLatestRatesResponse snapshot = cacheService.getRates(originCurrency.toUpperCase());
+        
+        BigDecimal rate = extractRate(snapshot, targetCurrency.toUpperCase());
+        
+        return new RateResponse(snapshot.base(), targetCurrency.toUpperCase(), rate, snapshot.date());
     }
 
-    public RatesResponse getAllRates(String from) {
-        ApiLatestRatesResponse snapshot = cacheService.getRates(from.toUpperCase());
+    public RatesResponse getAllRates(String originCurrency) {
+        ApiLatestRatesResponse snapshot = cacheService.getRates(originCurrency.toUpperCase());
         return new RatesResponse(snapshot.base(), snapshot.rates(), snapshot.date());
     }
 
-    public ConversionResponse convert(String from, String to, BigDecimal amount) {
-        ApiLatestRatesResponse snapshot = cacheService.getRates(from.toUpperCase());
-        BigDecimal rate = extractRate(snapshot, to.toUpperCase());
+    public ConversionResponse convert(String originCurrency, String targetCurrency, BigDecimal amount) {
+        ApiLatestRatesResponse snapshot = cacheService.getRates(originCurrency.toUpperCase());
+        
+        BigDecimal rate = extractRate(snapshot, targetCurrency.toUpperCase());
         BigDecimal converted = amount.multiply(rate).setScale(CONVERSION_SCALE, RoundingMode.HALF_UP);
-        return new ConversionResponse(snapshot.base(), to.toUpperCase(), amount, converted, rate);
+        
+        return new ConversionResponse(snapshot.base(), targetCurrency.toUpperCase(), amount, converted, rate);
     }
 
-    public MultiConversionResponse convertToMany(String from, BigDecimal amount, List<String> targets) {
-        ApiLatestRatesResponse snapshot = cacheService.getRates(from.toUpperCase());
+    public MultiConversionResponse convertToMany(String originCurrency, BigDecimal amount, List<String> targets) {
+        ApiLatestRatesResponse snapshot = cacheService.getRates(originCurrency.toUpperCase());
 
         List<ConversionResult> results = targets.stream()
                 .map(String::toUpperCase)

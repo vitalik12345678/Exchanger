@@ -31,7 +31,7 @@ public class ExchangeRateController {
 
     private final ExchangeRateService exchangeRateService;
 
-    @GetMapping("/rates/{from}/{to}")
+    @GetMapping("/rates/{originCurrency}/{targetCurrency}")
     @Operation(
             summary = "Get exchange rate from currency A to currency B",
             description = "Returns the current exchange rate between two currencies. Rates are cached for 60 seconds.",
@@ -44,13 +44,13 @@ public class ExchangeRateController {
     )
     public ResponseEntity<RateResponse> getRate(
             @Parameter(description = "Source currency code (e.g. USD)", example = "USD")
-            @PathVariable String from,
+            @PathVariable String originCurrency,
             @Parameter(description = "Target currency code (e.g. EUR)", example = "EUR")
-            @PathVariable String to) {
-        return ResponseEntity.ok(exchangeRateService.getRate(from, to));
+            @PathVariable String targetCurrency) {
+        return ResponseEntity.ok(exchangeRateService.getRate(originCurrency, targetCurrency));
     }
 
-    @GetMapping("/rates/{from}")
+    @GetMapping("/rates/{originCurrency}")
     @Operation(
             summary = "Get all exchange rates from currency A",
             description = "Returns all available exchange rates relative to the given base currency. Rates are cached for 60 seconds.",
@@ -63,11 +63,11 @@ public class ExchangeRateController {
     )
     public ResponseEntity<RatesResponse> getAllRates(
             @Parameter(description = "Base currency code (e.g. USD)", example = "USD")
-            @PathVariable String from) {
-        return ResponseEntity.ok(exchangeRateService.getAllRates(from));
+            @PathVariable String originCurrency) {
+        return ResponseEntity.ok(exchangeRateService.getAllRates(originCurrency));
     }
 
-    @GetMapping("/convert/{from}/{to}")
+    @GetMapping("/convert/{originCurrency}/{targetCurrency}")
     @Operation(
             summary = "Convert an amount from currency A to currency B",
             description = "Converts the given amount using the current exchange rate. Rates are cached for 60 seconds.",
@@ -81,15 +81,15 @@ public class ExchangeRateController {
     )
     public ResponseEntity<ConversionResponse> convert(
             @Parameter(description = "Source currency code (e.g. USD)", example = "USD")
-            @PathVariable String from,
+            @PathVariable String originCurrency,
             @Parameter(description = "Target currency code (e.g. EUR)", example = "EUR")
-            @PathVariable String to,
+            @PathVariable String targetCurrency,
             @Parameter(description = "Amount to convert", example = "100.0")
             @RequestParam @Positive BigDecimal amount) {
-        return ResponseEntity.ok(exchangeRateService.convert(from, to, amount));
+        return ResponseEntity.ok(exchangeRateService.convert(originCurrency, targetCurrency, amount));
     }
 
-    @GetMapping("/convert/{from}")
+    @GetMapping("/convert/{originCurrency}")
     @Operation(
             summary = "Convert an amount from currency A to multiple target currencies",
             description = "Converts the given amount to each of the supplied target currencies in a single call. Rates are cached for 60 seconds.",
@@ -103,11 +103,11 @@ public class ExchangeRateController {
     )
     public ResponseEntity<MultiConversionResponse> convertToMany(
             @Parameter(description = "Source currency code (e.g. USD)", example = "USD")
-            @PathVariable String from,
+            @PathVariable String originCurrency,
             @Parameter(description = "Amount to convert", example = "100.0")
             @RequestParam @Positive BigDecimal amount,
             @Parameter(description = "Comma-separated list of target currency codes", example = "EUR,GBP,JPY")
             @RequestParam List<String> targets) {
-        return ResponseEntity.ok(exchangeRateService.convertToMany(from, amount, targets));
+        return ResponseEntity.ok(exchangeRateService.convertToMany(originCurrency, amount, targets));
     }
 }
