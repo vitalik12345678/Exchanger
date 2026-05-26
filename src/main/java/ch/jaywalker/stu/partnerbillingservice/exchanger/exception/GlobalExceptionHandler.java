@@ -1,6 +1,8 @@
 package ch.jaywalker.stu.partnerbillingservice.exchanger.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import java.net.URI;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -29,6 +31,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Currency not found: " + value);
 		problem.setTitle("Currency Not Found");
 		problem.setType(URI.create(ERROR_BASE_URI + "currency-not-found"));
+		return problem;
+	}
+
+	@ExceptionHandler(ConstraintViolationException.class)
+	public ProblemDetail handleConstraintViolation(ConstraintViolationException ex) {
+		String detail = ex.getConstraintViolations().stream().map(v -> {
+			String path = v.getPropertyPath().toString();
+			String field = path.contains(".") ? path.substring(path.lastIndexOf('.') + 1) : path;
+			return field + ": " + v.getMessage();
+		}).collect(Collectors.joining(", "));
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
+		problem.setTitle("Invalid Request Parameter");
+		problem.setType(URI.create(ERROR_BASE_URI + "invalid-request"));
 		return problem;
 	}
 
