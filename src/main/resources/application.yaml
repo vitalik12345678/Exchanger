@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: exchanger
+  mvc:
+    problemdetails:
+      enabled: true
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=60s
+
+exchanger:
+  api:
+    base-url: https://api.apilayer.com/exchangerates_data
+    key: ${EXCHANGE_RATE_API_KEY:changeme}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
